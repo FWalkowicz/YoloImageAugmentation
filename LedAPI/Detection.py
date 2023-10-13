@@ -20,8 +20,8 @@ class Detection(ABC):
 
 
 class LedDetection(Detection):
-    def __init__(self):
-        pass
+    def __init__(self, first_image):
+        self.first_image = first_image
 
     def train(self):
         pass
