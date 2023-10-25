@@ -1,26 +1,12 @@
 import cv2
 from ultralytics import YOLO
 import torch
-
+import os
 # TODO: 1. rotate, 2. flip, 3. crop
 # TODO: minimum 15 zdjec - nie no zart xD
 
 # TODO: Zrobienie struktury dataset'u dla yolo
 # TODO: Generowanie pliku .yaml do trenowania modelu
-
-
-def normalize_coordinates(coordinates) -> list:
-    for coordinate in coordinates:
-        x1, y1 = coordinates[coordinate][0], coordinates[coordinate][1]
-        x2, y2 = coordinates[coordinate][2], coordinates[coordinate][3]
-        image_width, image_height = 640, 640
-        normalize_x = abs((x1 + x2) / (2 * image_width))
-        normalize_y = abs((y1 + y2) / (2 * image_height))
-        normalize_width = abs((x2 - x1) / image_width)
-        normalize_height = abs((y2 - y1) / image_height)
-        coordinates[coordinate] = [normalize_x, normalize_y, normalize_width, normalize_height]
-
-    return coordinates
 
 
 def save_to_dataset(image, name, coordinates):
@@ -49,45 +35,46 @@ def create_coords(coordinates):
     return data
 
 
-image = cv2.imread('led.jpg')
-image = cv2.resize(image, (640, 640))
-basic_coords = create_coords([15, 75, 120, 200])
-print(basic_coords)
-normalize_coords = normalize_coordinates(basic_coords)
-print(normalize_coords)
-flip = cv2.flip(image,  1)
-flip2 = cv2.flip(image, 0)
-rotate = cv2.rotate(image, 1)
-rotateflip = cv2.rotate(flip, cv2.ROTATE_90_CLOCKWISE)
-rotateflip2 = cv2.rotate(flip, cv2.ROTATE_90_COUNTERCLOCKWISE)
-blurred = cv2.GaussianBlur(image, (5, 5), 0)
-blurred_2 = cv2.GaussianBlur(flip, (5, 5), 0)
-blurred_3 = cv2.GaussianBlur(flip2, (5, 5), 0)
-blurred_4 = cv2.GaussianBlur(rotate, (5, 5), 0)
-blurred_5 = cv2.GaussianBlur(rotateflip, (5, 5), 0)
-blurred_6 = cv2.GaussianBlur(rotateflip2, (5, 5), 0)
-save_to_dataset(image, 'led', normalize_coords['basic'])
-save_to_dataset(flip, 'flip', normalize_coords['flip'])
-save_to_dataset(flip2, 'flip2', normalize_coords['flip2'])
-save_to_dataset(rotate, 'rotate', normalize_coords['rotate'])
-save_to_dataset(rotate, 'rotate2', normalize_coords['rotate2'])
-save_to_dataset(rotate, 'rotate3', normalize_coords['rotate3'])
-save_to_dataset(blurred, 'led_blur', normalize_coords['basic_blur'])
-save_to_dataset(blurred_2, 'flip_blur', normalize_coords['flip_blur'])
-save_to_dataset(blurred_3, 'flip2_blur', normalize_coords['flip2_blur'])
-save_to_dataset(blurred_4, 'rotate_blur', normalize_coords['rotate_blur'])
-save_to_dataset(blurred_5, 'rotate2_blur', normalize_coords['rotate2_blur'])
-save_to_dataset(blurred_6, 'rotate3_blur', normalize_coords['rotate3_blur'])
 
-torch.backends.cudnn.enabled = False
-model = YOLO(f"yolov8m.pt")
-model.train(
-    data='/home/filip/PycharmProjects/LedDetection/LedDS/data.yaml',
-    imgsz=640,
-    epochs=10,
-    batch=8,
-    name=f"yolo-custom",
-)
+# image = cv2.imread('led.jpg')
+# image = cv2.resize(image, (640, 640))
+# basic_coords = create_coords([15, 75, 120, 200])
+# print(basic_coords)
+# normalize_coords = normalize_coordinates(basic_coords)
+# print(normalize_coords)
+# flip = cv2.flip(image,  1)
+# flip2 = cv2.flip(image, 0)
+# rotate = cv2.rotate(image, 1)
+# rotateflip = cv2.rotate(flip, cv2.ROTATE_90_CLOCKWISE)
+# rotateflip2 = cv2.rotate(flip, cv2.ROTATE_90_COUNTERCLOCKWISE)
+# blurred = cv2.GaussianBlur(image, (5, 5), 0)
+# blurred_2 = cv2.GaussianBlur(flip, (5, 5), 0)
+# blurred_3 = cv2.GaussianBlur(flip2, (5, 5), 0)
+# blurred_4 = cv2.GaussianBlur(rotate, (5, 5), 0)
+# blurred_5 = cv2.GaussianBlur(rotateflip, (5, 5), 0)
+# blurred_6 = cv2.GaussianBlur(rotateflip2, (5, 5), 0)
+# save_to_dataset(image, 'led', normalize_coords['basic'])
+# save_to_dataset(flip, 'flip', normalize_coords['flip'])
+# save_to_dataset(flip2, 'flip2', normalize_coords['flip2'])
+# save_to_dataset(rotate, 'rotate', normalize_coords['rotate'])
+# save_to_dataset(rotate, 'rotate2', normalize_coords['rotate2'])
+# save_to_dataset(rotate, 'rotate3', normalize_coords['rotate3'])
+# save_to_dataset(blurred, 'led_blur', normalize_coords['basic_blur'])
+# save_to_dataset(blurred_2, 'flip_blur', normalize_coords['flip_blur'])
+# save_to_dataset(blurred_3, 'flip2_blur', normalize_coords['flip2_blur'])
+# save_to_dataset(blurred_4, 'rotate_blur', normalize_coords['rotate_blur'])
+# save_to_dataset(blurred_5, 'rotate2_blur', normalize_coords['rotate2_blur'])
+# save_to_dataset(blurred_6, 'rotate3_blur', normalize_coords['rotate3_blur'])
+#
+# torch.backends.cudnn.enabled = False
+# model = YOLO(f"yolov8m.pt")
+# model.train(
+#     data='/home/filip/PycharmProjects/LedDetection/LedDS/data.yaml',
+#     imgsz=640,
+#     epochs=10,
+#     batch=8,
+#     name=f"yolo-custom",
+# )
 """
 while True:
     cv2.imshow('image', image)
