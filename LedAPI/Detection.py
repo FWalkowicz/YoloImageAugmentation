@@ -32,7 +32,8 @@ class LedDetection(Detection):
     def __init__(self, first_image, coordinates):
         self.first_image = cv2.resize(first_image, (640, 640))
         self.image_set = [self.first_image]
-        self.coordinates = coordinates
+        self.basic_coordinates = coordinates
+        self.coordinates = None
         self.name = "led"
 
     def train_model(self):
@@ -50,27 +51,28 @@ class LedDetection(Detection):
         self.normalize_coordinates()
         self.create_images()
 
-
-
-
     def predict(self):
         pass
 
     def normalize_coordinates(self) -> None:
         for coordinate in self.coordinates:
-            x1, y1 = self.coordinates[coordinate][0], self.coordinates[coordinate][1]
-            x2, y2 = self.coordinates[coordinate][2], self.coordinates[coordinate][3]
-            image_width, image_height = 640, 640
-            normalize_x = abs((x1 + x2) / (2 * image_width))
-            normalize_y = abs((y1 + y2) / (2 * image_height))
-            normalize_width = abs((x2 - x1) / image_width)
-            normalize_height = abs((y2 - y1) / image_height)
-            self.coordinates[coordinate] = [
-                normalize_x,
-                normalize_y,
-                normalize_width,
-                normalize_height,
-            ]
+            normalized_coords = []
+            for cords in self.coordinates[coordinate]:
+                x1, y1 = cords[0], cords[1]
+                x2, y2 = cords[2], cords[3]
+                image_width, image_height = 640, 640
+                normalize_x = abs((x1 + x2) / (2 * image_width))
+                normalize_y = abs((y1 + y2) / (2 * image_height))
+                normalize_width = abs((x2 - x1) / image_width)
+                normalize_height = abs((y2 - y1) / image_height)
+                normalized_coords.append([
+                    normalize_x,
+                    normalize_y,
+                    normalize_width,
+                    normalize_height,
+                ])
+            self.coordinates[coordinate] = normalized_coords
+        print(self.coordinates)
 
     def create_dataset_folder(self):
         path = f"./ModelDataset{self.name}"
@@ -96,130 +98,120 @@ names: [led]
 
     def create_coords(self):
         self.coordinates = {
-            "basic": self.coordinates,
-            "flip": [
-                640 - self.coordinates[0],
-                self.coordinates[1],
-                640 - self.coordinates[2],
-                self.coordinates[3],
-            ],
-            "flip2": [
-                self.coordinates[0],
-                640 - self.coordinates[1],
-                self.coordinates[2],
-                640 - self.coordinates[3],
-            ],
-            "rotate": [
-                640 - self.coordinates[0],
-                640 - self.coordinates[1],
-                640 - self.coordinates[2],
-                640 - self.coordinates[3],
-            ],
-            "rotate2": [
-                640 - self.coordinates[1],
-                640 - self.coordinates[0],
-                640 - self.coordinates[3],
-                640 - self.coordinates[2],
-            ],
-            "rotate3": [
-                self.coordinates[1],
-                self.coordinates[0],
-                self.coordinates[3],
-                self.coordinates[2],
-            ],
-            "basic_blur": self.coordinates,
-            "flip_blur": [
-                640 - self.coordinates[0],
-                self.coordinates[1],
-                640 - self.coordinates[2],
-                self.coordinates[3],
-            ],
-            "flip2_blur": [
-                self.coordinates[0],
-                640 - self.coordinates[1],
-                self.coordinates[2],
-                640 - self.coordinates[3],
-            ],
-            "rotate_blur": [
-                640 - self.coordinates[0],
-                640 - self.coordinates[1],
-                640 - self.coordinates[2],
-                640 - self.coordinates[3],
-            ],
-            "rotate2_blur": [
-                640 - self.coordinates[1],
-                640 - self.coordinates[0],
-                640 - self.coordinates[3],
-                640 - self.coordinates[2],
-            ],
-            "rotate3_blur": [
-                self.coordinates[1],
-                self.coordinates[0],
-                self.coordinates[3],
-                self.coordinates[2],
-            ],
-            "noise_1": [
-                640 - self.coordinates[0],
-                self.coordinates[1],
-                640 - self.coordinates[2],
-                self.coordinates[3],
-            ],
-            "noise_2": [
-                self.coordinates[0],
-                640 - self.coordinates[1],
-                self.coordinates[2],
-                640 - self.coordinates[3],
-            ],
-            "noise_3": [
-                640 - self.coordinates[0],
-                640 - self.coordinates[1],
-                640 - self.coordinates[2],
-                640 - self.coordinates[3],
-            ],
-            "noise_4": [
-                640 - self.coordinates[1],
-                640 - self.coordinates[0],
-                640 - self.coordinates[3],
-                640 - self.coordinates[2],
-            ],
-            "noise_5": [
-                self.coordinates[1],
-                self.coordinates[0],
-                self.coordinates[3],
-                self.coordinates[2],
-            ],
-            "noise_6": self.coordinates,
-            "noise_7": [
-                640 - self.coordinates[0],
-                self.coordinates[1],
-                640 - self.coordinates[2],
-                self.coordinates[3],
-            ],
-            "noise_8": [
-                self.coordinates[0],
-                640 - self.coordinates[1],
-                self.coordinates[2],
-                640 - self.coordinates[3],
-            ],
-            "noise_9": [
-                640 - self.coordinates[0],
-                640 - self.coordinates[1],
-                640 - self.coordinates[2],
-                640 - self.coordinates[3],
-            ],
-            "noise_10": [
-                640 - self.coordinates[1],
-                640 - self.coordinates[0],
-                640 - self.coordinates[3],
-                640 - self.coordinates[2],
-            ],
-            "noise_11": [
-                self.coordinates[1],
-                self.coordinates[0],
-                self.coordinates[3],
-                self.coordinates[2],
-            ],
+            "basic": self.basic_coordinates,
+            "flip": [],
+            "flip2": [],
+            "rotate": [],
+            "rotate2": [],
+            "rotate3": [],
+            "basic_blur": self.basic_coordinates,
+            "flip_blur": [],
+            "flip2_blur": [],
+            "rotate_blur": [],
+            "rotate2_blur": [],
+            "rotate3_blur": [],
+            "noise_1": [],
+            "noise_2": [],
+            "noise_3": [],
+            "noise_4": [],
+            "noise_5": [],
+            "noise_6": [],
+            "noise_7": [],
+            "noise_8": [],
+            "noise_9": [],
+            "noise_10": [],
+            "noise_11": [],
         }
+        for coord in self.basic_coordinates:
+            self.coordinates['flip'].append([
+                640 - coord[0],
+                coord[1],
+                640 - coord[2],
+                coord[3],
+            ])
+            self.coordinates['flip2'].append(
+                [
+                    coord[0],
+                    640 - coord[1],
+                    coord[2],
+                    640 - coord[3],
+                ],
+            )
+            self.coordinates['rotate'].append(
+                [
+                    640 - coord[0],
+                    640 - coord[1],
+                    640 - coord[2],
+                    640 - coord[3],
+                ]
+            )
+            self.coordinates['rotate2'].append(
+                [
+                    640 - coord[1],
+                    640 - coord[0],
+                    640 - coord[3],
+                    640 - coord[2],
+                ]
+            )
+            self.coordinates['rotate3'].append(
+                [
+                    coord[1],
+                    coord[0],
+                    coord[3],
+                    coord[2]
+                ]
+            )
+            self.coordinates['flip_blur'].append(
+                [
+                    640 - coord[0],
+                    coord[1],
+                    640 - coord[2],
+                    coord[3],
+                ]
+            )
+            self.coordinates['flip2_blur'].append(
+                [
+                    coord[0],
+                    640 - coord[1],
+                    coord[2],
+                    640 - coord[3],
+                ]
+            )
+            self.coordinates['rotate_blur'].append(
+                [
+                    640 - coord[0],
+                    640 - coord[1],
+                    640 - coord[2],
+                    640 - coord[3],
+                ]
+            )
+            self.coordinates['rotate2_blur'].append(
+                [
+                    640 - coord[1],
+                    640 - coord[0],
+                    640 - coord[3],
+                    640 - coord[2],
+                ]
+            )
+            self.coordinates['rotate3_blur'].append(
+                [
+                    coord[1],
+                    coord[0],
+                    coord[3],
+                    coord[2],
+                ]
+            )
+        self.coordinates['noise_1'] = self.coordinates['flip']
+        self.coordinates['noise_2'] = self.coordinates['flip2']
+        self.coordinates['noise_3'] = self.coordinates['rotate']
+        self.coordinates['noise_4'] = self.coordinates['rotate2']
+        self.coordinates['noise_5'] = self.coordinates['rotate3']
+        self.coordinates['noise_6'] = self.coordinates['basic']
+        self.coordinates['noise_7'] = self.coordinates['flip_blur']
+        self.coordinates['noise_8'] = self.coordinates['flip2_blur']
+        self.coordinates['noise_9'] = self.coordinates['rotate_blur']
+        self.coordinates['noise_10'] = self.coordinates['rotate2_blur']
+        self.coordinates['noise_11'] = self.coordinates['rotate3_blur']
 
     @staticmethod
     def noise(img):
@@ -277,23 +269,25 @@ names: [led]
         self.save_to_dataset(noise_11, 'noise_11', self.coordinates['noise_11'])
         self.save_to_valid(noise_11, 'noise_11', self.coordinates['noise_11'])
 
-    @staticmethod
-    def save_to_dataset(image, name, coordinates):
+    def save_to_dataset(self, image, name, coordinates):
         cv2.imwrite(f'./ModelDatasetled/train/images/{name}.jpg', image)
-        with open(f'./ModelDatasetled/train/labels/{name}.txt', 'w') as file:
-            file.write(
-                f'0 {str(coordinates)[1:-1].replace(",", " ")}')
-        pass
+        for cords in self.coordinates[name]:
+            with open(f'./ModelDatasetled/train/labels/{name}.txt', 'a') as file:
+                file.write(
+                    f'0 {str(cords)[1:-1].replace(",", " ")} \n')
+            pass
 
     @staticmethod
     def save_to_valid(image, name, coordinates):
         cv2.imwrite(f'./ModelDatasetled/valid/images/{name}.jpg', image)
-        with open(f'./ModelDatasetled/valid/labels/{name}.txt', 'w') as file:
+        with open(f'./ModelDatasetled/valid/labels/{name}.txt', 'a') as file:
             file.write(
-                f'0 {str(coordinates)[1:-1].replace(",", " ")}')
+                f'0 {str(coordinates)[1:-1].replace(",", " ")} \n')
         pass
 
-if __name__ == "__main__":
-    image = cv2.imread("../led.jpg")
-    newLed = LedDetection(image, [15, 75, 120, 200])
-    newLed.create_dataset()
+
+# if __name__ == "__main__":
+#     image = cv2.imread("../le3.png")
+#     newLed = LedDetection(image, [[110, 160, 235, 380], [245, 280, 220, 65]])
+#     newLed.create_dataset()
+#     newLed.train_model()
