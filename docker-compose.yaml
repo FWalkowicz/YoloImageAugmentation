@@ -1,0 +1,19 @@
+version: '3.4'
+services:
+  imagegenerator:
+    image: 'imagegenerator'
+    network_mode: "host"
+    privileged: true
+    restart: always
+    command:
+       - "uvicorn"
+       - "main:app"
+       - "--host"
+       #- "192.168.1.66"
+       - "192.168.0.193"
+       #- "172.17.3.104 "
+       - "--port"
+       - "8003"
+
+
+

@@ -277,17 +277,17 @@ names: [led]
                     f'0 {str(cords)[1:-1].replace(",", " ")} \n')
             pass
 
-    @staticmethod
-    def save_to_valid(image, name, coordinates):
+    def save_to_valid(self, image, name, coordinates):
         cv2.imwrite(f'./ModelDatasetled/valid/images/{name}.jpg', image)
-        with open(f'./ModelDatasetled/valid/labels/{name}.txt', 'a') as file:
-            file.write(
-                f'0 {str(coordinates)[1:-1].replace(",", " ")} \n')
-        pass
+        for cords in self.coordinates[name]:
+            with open(f'./ModelDatasetled/valid/labels/{name}.txt', 'a') as file:
+                file.write(
+                    f'0 {str(cords)[1:-1].replace(",", " ")} \n')
+            pass
 
 
 # if __name__ == "__main__":
 #     image = cv2.imread("../le3.png")
-#     newLed = LedDetection(image, [[110, 160, 235, 380], [245, 280, 220, 65]])
+#     newLed = LedDetection(image, [[110, 160, 235, 380], [220, 60, 340, 280], [330, 165, 500, 350]])
 #     newLed.create_dataset()
 #     newLed.train_model()
