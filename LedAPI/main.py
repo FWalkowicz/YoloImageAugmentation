@@ -55,9 +55,10 @@ async def check_for_image(image):
 @app.get("/auth")
 def read_current_user(credentials: Annotated[str, Depends(get_current_username)]):
     """
+    Get information about the current user.
 
-    :param credentials:
-    :return:
+    :param credentials: Current user's username.
+    :return: User information.
     """
     return {"username": credentials}
 
@@ -65,11 +66,12 @@ def read_current_user(credentials: Annotated[str, Depends(get_current_username)]
 @app.post("/createDataset")
 async def execute_ai(input_image: UploadFile, coordinates):
     """
-    example [[110, 160, 235, 380], [220, 60, 340, 280], [330, 165, 500, 350]]
+    Process an input image to create a dataset for LED detection.
+    example for coords: [[110, 160, 235, 380], [220, 60, 340, 280], [330, 165, 500, 350]]
 
-    :param input_image:
-    :param coordinates:
-    :return:
+    :param input_image:  Uploaded image file (JPEG or PNG).
+    :param coordinates: List of coordinates representing LED bounding boxes in the image.
+    :return: Success message if the image is processed successfully.
     """
     if not input_image.filename.lower().endswith((".jpg", ".jpeg", ".png")):
         return {"error": "Only JPEG and PNG images are supported."}
@@ -87,9 +89,10 @@ async def execute_ai(input_image: UploadFile, coordinates):
 @app.post("/createNewModel")
 async def create_new_model(name: str) -> dict[str, str]:
     """
+    Start training a new LED detection model.
 
-    :param name:
-    :return:
+    :param name: Name for the new model.
+    :return: Success message if the model training is started.
     """
     if not storeLED["isTraining"]:
         t = threading.Thread(target=train_model, args=(name, ))
@@ -116,8 +119,9 @@ def train_model(name: str):
 @app.get("/showModels")
 def show_models():
     """
+    Retrieve a list of available LED detection models.
 
-    :return:
+    :return: List of model names.
     """
     models_dic = {}
     models_dic["models"] = os.listdir("./runs/detect")
@@ -127,10 +131,11 @@ def show_models():
 @app.post("/getPrediction")
 async def get_prediction(input_image: UploadFile, model_name):
     """
+    Get LED detection predictions for an input image using a specified model.
 
-    :param input_image:
-    :param model_name:
-    :return:
+    :param input_image: Uploaded image file (JPEG or PNG).
+    :param model_name: Name of the trained model.
+    :return: List of dictionaries containing bounding box coordinates and confidence scores for each detected LED.
     """
     if not input_image.filename.lower().endswith((".jpg", ".jpeg", ".png")):
         return {"error": "Only JPEG and PNG images are supported."}
@@ -164,9 +169,10 @@ async def get_prediction(input_image: UploadFile, model_name):
 @app.get("/downloadModel")
 def download_model(model_name):
     """
+    Download a trained LED detection model file.
 
-    :param model_name:
-    :return:
+    :param model_name: Name of the model to be downloaded.
+    :return: Downloaded model file in binary format.
     """
     model_dir = os.path.join("./runs/detect", f"{model_name}")
     if os.path.exists(model_dir):
@@ -182,9 +188,10 @@ def download_model(model_name):
 @app.delete("/deleteModel")
 def delete_model(model_name):
     """
+    Delete a trained LED detection model.
 
-    :param model_name:
-    :return:
+    :param model_name: model_name: Name of the model to be downloaded.
+    :return: None
     """
     model_dir = os.path.join("./runs/detect", f"{model_name}")
     if os.path.exists(model_dir):
