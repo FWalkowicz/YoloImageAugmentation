@@ -12,6 +12,7 @@ from ultralytics import YOLO
 import torch
 import supervision as sv
 import threading
+import json
 
 storeLED = {"newLed": None, "model": YOLO(f"yolov8m.pt"), "isTraining": False}
 UserStorage = {"clientId": "comcore", "clientSecret": "75TF3R7HrqFB"}
@@ -64,10 +65,11 @@ def read_current_user(credentials: Annotated[str, Depends(get_current_username)]
 
 
 @app.post("/createDataset")
-async def execute_ai(input_image: UploadFile, coordinates):
+async def execute_ai(input_image: UploadFile, objects):
     """
     Process an input image to create a dataset for LED detection.
-    example for coords: [[110, 160, 235, 380], [220, 60, 340, 280], [330, 165, 500, 350]]
+    Example for coords: [[110, 160, 235, 380], [220, 60, 340, 280], [330, 165, 500, 350]]
+    Example: {"detections": [{"coordinates": [110, 160, 235, 380], "label": "led1"},{"coordinates": [220, 60, 340, 280], "label": "led2"}, {"coordinates": [330, 165, 500, 350], "label": "led3"}] }
 
     :param input_image:  Uploaded image file (JPEG or PNG).
     :param coordinates: List of coordinates representing LED bounding boxes in the image.
@@ -79,10 +81,15 @@ async def execute_ai(input_image: UploadFile, coordinates):
     image_data = await input_image.read()
     nparr = np.frombuffer(image_data, np.uint8)
     image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-    newLed = LedDetection(image, eval(coordinates))
+    data = json.loads(objects)
+    coordinates = []
+    labels = []
+    for obiekt in data['detections']:
+        coordinates.append(obiekt['coordinates'])
+        labels.append(obiekt['label'])
+    newLed = LedDetection(image, data)
     storeLED["newLed"] = newLed
-    newLed.create_dataset()
-
+    newLed.create_dataset(labels)
     return {"message": "Image processed successfully"}
 
 
@@ -114,6 +121,7 @@ def train_model(name: str):
         name=f"{name}",
     )
     storeLED["isTraining"] = False
+    shutil.rmtree('./ModelDatasetled')
 
 
 @app.get("/showModels")
@@ -124,7 +132,10 @@ def show_models():
     :return: List of model names.
     """
     models_dic = {}
-    models_dic["models"] = os.listdir("./runs/detect")
+    if os.path.exists("./runs/detect"):
+        models_dic["models"] = os.listdir("./runs/detect")
+    else:
+        raise HTTPException(status_code=404, detail="Currently no model is saved")
     return models_dic
 
 
@@ -179,7 +190,7 @@ def download_model(model_name):
         return FileResponse(
             f"./runs/detect/{model_name}/weights/best.pt",
             media_type="application/octet-stream",
-            filename=f"{model_name}",
+            filename=f"{model_name}.pt ",
         )
     else:
         raise HTTPException(status_code=404, detail="Model not found")

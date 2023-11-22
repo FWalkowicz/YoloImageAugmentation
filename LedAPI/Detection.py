@@ -29,12 +29,15 @@ class Detection(ABC):
 
 
 class LedDetection(Detection):
-    def __init__(self, first_image, coordinates):
+    def __init__(self, first_image, data):
         self.first_image = cv2.resize(first_image, (640, 640))
         self.image_set = [self.first_image]
-        self.basic_coordinates = coordinates
+        self.basic_coordinates = []
         self.coordinates = None
         self.name = "led"
+        self.data = data
+        self.labels = []
+
 
     def train_model(self):
         torch.backends.cudnn.enabled = False
@@ -45,7 +48,10 @@ class LedDetection(Detection):
                     batch=8,
                     name=f"yolo-custom", )
 
-    def create_dataset(self):
+    def create_dataset(self, labels):
+        for obiekt in self.data['detections']:
+            self.basic_coordinates.append(obiekt['coordinates'])
+            self.labels.append(obiekt['label'])
         self.create_dataset_folder()
         self.create_coords()
         self.normalize_coordinates()
@@ -55,36 +61,42 @@ class LedDetection(Detection):
         pass
 
     def normalize_coordinates(self) -> None:
-        for coordinate in self.coordinates:
+        for label, detection_list in self.coordinates.items():
             normalized_coords = []
-            for cords in self.coordinates[coordinate]:
-                x1, y1 = cords[0], cords[1]
-                x2, y2 = cords[2], cords[3]
+            for detection in detection_list:
+                x1, y1 = detection['coordinates'][0], detection['coordinates'][1]
+                x2, y2 = detection['coordinates'][2], detection['coordinates'][3]
                 image_width, image_height = 640, 640
                 normalize_x = abs((x1 + x2) / (2 * image_width))
                 normalize_y = abs((y1 + y2) / (2 * image_height))
                 normalize_width = abs((x2 - x1) / image_width)
                 normalize_height = abs((y2 - y1) / image_height)
-                normalized_coords.append([
-                    normalize_x,
-                    normalize_y,
-                    normalize_width,
-                    normalize_height,
-                ])
-            self.coordinates[coordinate] = normalized_coords
-        print(self.coordinates)
+                normalized_coords.append({
+                    'coordinates': [
+                        normalize_x,
+                        normalize_y,
+                        normalize_width,
+                        normalize_height,
+                    ],
+                    'label': detection['label'],
+                })
+            self.coordinates[label] = normalized_coords
 
     def create_dataset_folder(self):
         path = f"./ModelDataset{self.name}"
         folders = ["train", "test", "valid"]
         image_and_label_folders = ["images", "labels"]
         configuration_file = "data.yaml"
-        yaml_data = """train: ./train/images
+
+        # Format labels without quotes
+        labels_str = ', '.join(self.labels)
+
+        yaml_data = f"""train: ./train/images
 val: ./valid/images
 test: ./test/images
 
-nc: 1
-names: [led]
+nc: {len(self.labels)}
+names: [{labels_str}]
 """
         if not os.path.exists(path):
             os.mkdir(path)
@@ -98,13 +110,13 @@ names: [led]
 
     def create_coords(self):
         self.coordinates = {
-            "basic": self.basic_coordinates,
+            "basic": self.data['detections'],
             "flip": [],
             "flip2": [],
             "rotate": [],
             "rotate2": [],
             "rotate3": [],
-            "basic_blur": self.basic_coordinates,
+            "basic_blur": self.data['detections'],
             "flip_blur": [],
             "flip2_blur": [],
             "rotate_blur": [],
@@ -122,84 +134,87 @@ names: [led]
             "noise_10": [],
             "noise_11": [],
         }
-        for coord in self.basic_coordinates:
-            self.coordinates['flip'].append([
-                640 - coord[0],
-                coord[1],
-                640 - coord[2],
-                coord[3],
-            ])
+        for coord in self.data['detections']:
+            self.coordinates['flip'].append({'coordinates': [
+                640 - coord['coordinates'][0],
+                coord['coordinates'][1],
+                640 - coord['coordinates'][2],
+                coord['coordinates'][3],
+            ], 'label': coord['label']})
             self.coordinates['flip2'].append(
-                [
-                    coord[0],
-                    640 - coord[1],
-                    coord[2],
-                    640 - coord[3],
-                ],
+                {'coordinates': [
+                    coord['coordinates'][0],
+                    640 - coord['coordinates'][1],
+                    coord['coordinates'][2],
+                    640 - coord['coordinates'][3],
+                ], 'label': coord['label']}
             )
             self.coordinates['rotate'].append(
-                [
-                    640 - coord[0],
-                    640 - coord[1],
-                    640 - coord[2],
-                    640 - coord[3],
-                ]
+                {'coordinates': [
+                    640 - coord['coordinates'][0],
+                    640 - coord['coordinates'][1],
+                    640 - coord['coordinates'][2],
+                    640 - coord['coordinates'][3],
+                ], 'label': coord['label']}
             )
             self.coordinates['rotate2'].append(
-                [
-                    640 - coord[1],
-                    640 - coord[0],
-                    640 - coord[3],
-                    640 - coord[2],
-                ]
+                {'coordinates': [
+                    640 - coord['coordinates'][1],
+                    640 - coord['coordinates'][0],
+                    640 - coord['coordinates'][3],
+                    640 - coord['coordinates'][2],
+                ], 'label': coord['label']}
             )
             self.coordinates['rotate3'].append(
-                [
-                    coord[1],
-                    coord[0],
-                    coord[3],
-                    coord[2]
-                ]
+                {'coordinates': [
+                    coord['coordinates'][1],
+                    coord['coordinates'][0],
+                    coord['coordinates'][3],
+                    coord['coordinates'][2],
+                ], 'label': coord['label']}
             )
             self.coordinates['flip_blur'].append(
-                [
-                    640 - coord[0],
-                    coord[1],
-                    640 - coord[2],
-                    coord[3],
-                ]
+                {'coordinates': [
+                    640 - coord['coordinates'][0],
+                    coord['coordinates'][1],
+                    640 - coord['coordinates'][2],
+                    coord['coordinates'][3],
+                ], 'label': coord['label']}
             )
             self.coordinates['flip2_blur'].append(
-                [
-                    coord[0],
-                    640 - coord[1],
-                    coord[2],
-                    640 - coord[3],
-                ]
+                {'coordinates': [
+                    coord['coordinates'][0],
+                    640 - coord['coordinates'][1],
+                    coord['coordinates'][2],
+                    640 - coord['coordinates'][3],
+                ], 'label': coord['label']}
             )
+
             self.coordinates['rotate_blur'].append(
-                [
-                    640 - coord[0],
-                    640 - coord[1],
-                    640 - coord[2],
-                    640 - coord[3],
-                ]
+                {'coordinates': [
+                    640 - coord['coordinates'][0],
+                    640 - coord['coordinates'][1],
+                    640 - coord['coordinates'][2],
+                    640 - coord['coordinates'][3],
+                ], 'label': coord['label']}
             )
+
             self.coordinates['rotate2_blur'].append(
-                [
-                    640 - coord[1],
-                    640 - coord[0],
-                    640 - coord[3],
-                    640 - coord[2],
-                ]
+                {'coordinates': [
+                    640 - coord['coordinates'][1],
+                    640 - coord['coordinates'][0],
+                    640 - coord['coordinates'][3],
+                    640 - coord['coordinates'][2],
+                ], 'label': coord['label']}
             )
+
             self.coordinates['rotate3_blur'].append(
-                [
-                    coord[1],
-                    coord[0],
-                    coord[3],
-                    coord[2],
-                ]
+                {'coordinates': [
+                    coord['coordinates'][1],
+                    coord['coordinates'][0],
+                    coord['coordinates'][3],
+                    coord['coordinates'][2],
+                ], 'label': coord['label']}
             )
         self.coordinates['noise_1'] = self.coordinates['flip']
         self.coordinates['noise_2'] = self.coordinates['flip2']
@@ -274,7 +289,7 @@ names: [led]
         for cords in self.coordinates[name]:
             with open(f'./ModelDatasetled/train/labels/{name}.txt', 'a') as file:
                 file.write(
-                    f'0 {str(cords)[1:-1].replace(",", " ")} \n')
+                    f"{self.labels.index(cords['label'])} {str(cords['coordinates'])[1:-1].replace(',', ' ')} \n")
             pass
 
     def save_to_valid(self, image, name, coordinates):
@@ -282,7 +297,7 @@ names: [led]
         for cords in self.coordinates[name]:
             with open(f'./ModelDatasetled/valid/labels/{name}.txt', 'a') as file:
                 file.write(
-                    f'0 {str(cords)[1:-1].replace(",", " ")} \n')
+                    f"{self.labels.index(cords['label'])} {str(cords['coordinates'])[1:-1].replace(',', ' ')} \n")
             pass
 
 
