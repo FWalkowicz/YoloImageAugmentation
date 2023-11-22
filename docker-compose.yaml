@@ -1,7 +1,7 @@
 version: '3.4'
 services:
   imagegenerator:
-    image: 'imagegenerator'
+    image: 'walkowiczf/yoloimagegenerator:latest'
     network_mode: "host"
     privileged: true
     restart: always
