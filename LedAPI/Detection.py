@@ -1,103 +1,72 @@
-from abc import ABC, abstractmethod
+import albumentations as A
 import os
 import cv2
-from ultralytics import YOLO
-import torch
-import numpy as np
+import random
+import string
+import math
 
-
-class Detection(ABC):
-    @abstractmethod
-    def __init__(self):
-        pass
-
-    @abstractmethod
-    def train_model(self):
-        pass
-
-    @abstractmethod
-    def create_dataset(self):
-        pass
-
-    @abstractmethod
-    def normalize_coordinates(self):
-        pass
-
-    @abstractmethod
-    def predict(self):
-        pass
-
-
-class LedDetection(Detection):
-    def __init__(self, first_image, data):
+class LedDetection:
+    def __init__(self, first_image, image_data):
         self.first_image = cv2.resize(first_image, (640, 640))
-        self.image_set = [self.first_image]
-        self.basic_coordinates = []
-        self.coordinates = None
-        self.name = "led"
-        self.data = data
+        self.image_data = image_data
+        self.transformed_image_data = None
         self.labels = []
+        self.name = 'led'
 
+    def transform_image_data(self) -> None:
+        temp_data = []
+        for detection in self.image_data['detections']:
+            x_center, y_center, width, height = detection["coordinates"]
+            object_with_label = [x_center, y_center, width, height, detection['label']]
+            temp_data.append(object_with_label)
 
-    def train_model(self):
-        torch.backends.cudnn.enabled = False
-        model = YOLO(f"yolov8m.pt")
-        model.train(data="./LedAPI/ModelDatasetled/data.yaml",
-                    imgsz=640,
-                    epochs=5,
-                    batch=8,
-                    name=f"yolo-custom", )
-
-    def create_dataset(self, labels):
-        for obiekt in self.data['detections']:
-            self.basic_coordinates.append(obiekt['coordinates'])
-            self.labels.append(obiekt['label'])
-        self.create_dataset_folder()
-        self.create_coords()
-        self.normalize_coordinates()
-        self.create_images()
-
-    def predict(self):
-        pass
+        self.transformed_image_data = temp_data
 
     def normalize_coordinates(self) -> None:
-        for label, detection_list in self.coordinates.items():
-            normalized_coords = []
-            for detection in detection_list:
-                x1, y1 = detection['coordinates'][0], detection['coordinates'][1]
-                x2, y2 = detection['coordinates'][2], detection['coordinates'][3]
-                image_width, image_height = 640, 640
-                normalize_x = abs((x1 + x2) / (2 * image_width))
-                normalize_y = abs((y1 + y2) / (2 * image_height))
-                normalize_width = abs((x2 - x1) / image_width)
-                normalize_height = abs((y2 - y1) / image_height)
-                normalized_coords.append({
-                    'coordinates': [
-                        normalize_x,
-                        normalize_y,
-                        normalize_width,
-                        normalize_height,
-                    ],
-                    'label': detection['label'],
-                })
-            self.coordinates[label] = normalized_coords
+        normalized_data = []
+        image_width, image_height = 640, 640
 
-    def create_dataset_folder(self):
+        for detection_list in self.transformed_image_data:
+            x1, y1, width, height, label = detection_list
+            normalize_x = (abs((x1 + width) / 2) / image_width)
+            normalize_y = (abs((y1 + height) / 2) / image_height)
+            normalize_width = abs((width - x1) / image_width)
+            normalize_height = abs((height - y1) / image_height)
+            data = [normalize_x, normalize_y, normalize_width, normalize_height, label]
+            normalized_data.append(data)
+
+        self.transformed_image_data = normalized_data
+        print(self.transformed_image_data)
+
+    def data_augmentation(self):
+        transform = A.Compose([
+            A.HorizontalFlip(p=0.5),
+            A.RandomBrightnessContrast(brightness_limit=0.4, contrast_limit=0.2, p=1.0),
+            A.GaussianBlur(p=0.3),
+            A.ISONoise(p=0.6)
+        ], bbox_params=A.BboxParams(format='yolo'))
+        transformed = []
+        for i in range(30):
+            transformed.append(transform(image=self.first_image, bboxes=self.transformed_image_data))
+
+        return transformed
+
+    def create_dataset_dependencies(self):
         path = f"./ModelDataset{self.name}"
         folders = ["train", "test", "valid"]
         image_and_label_folders = ["images", "labels"]
+        for data in self.transformed_image_data:
+            self.labels.append(data[4])
+        print(self.labels)
         configuration_file = "data.yaml"
-
-        # Format labels without quotes
-        labels_str = ', '.join(self.labels)
-
         yaml_data = f"""train: ./train/images
 val: ./valid/images
 test: ./test/images
 
-nc: {len(self.labels)}
-names: [{labels_str}]
+nc: {len(self.transformed_image_data)}
+names: {self.labels}
 """
+
         if not os.path.exists(path):
             os.mkdir(path)
             for folder in folders:
@@ -108,201 +77,42 @@ names: [{labels_str}]
             with open(os.path.join(path, configuration_file), "w") as f:
                 f.write(yaml_data)
 
-    def create_coords(self):
-        self.coordinates = {
-            "basic": self.data['detections'],
-            "flip": [],
-            "flip2": [],
-            "rotate": [],
-            "rotate2": [],
-            "rotate3": [],
-            "basic_blur": self.data['detections'],
-            "flip_blur": [],
-            "flip2_blur": [],
-            "rotate_blur": [],
-            "rotate2_blur": [],
-            "rotate3_blur": [],
-            "noise_1": [],
-            "noise_2": [],
-            "noise_3": [],
-            "noise_4": [],
-            "noise_5": [],
-            "noise_6": [],
-            "noise_7": [],
-            "noise_8": [],
-            "noise_9": [],
-            "noise_10": [],
-            "noise_11": [],
-        }
-        for coord in self.data['detections']:
-            self.coordinates['flip'].append({'coordinates': [
-                640 - coord['coordinates'][0],
-                coord['coordinates'][1],
-                640 - coord['coordinates'][2],
-                coord['coordinates'][3],
-            ], 'label': coord['label']})
-            self.coordinates['flip2'].append(
-                {'coordinates': [
-                    coord['coordinates'][0],
-                    640 - coord['coordinates'][1],
-                    coord['coordinates'][2],
-                    640 - coord['coordinates'][3],
-                ], 'label': coord['label']}
-            )
-            self.coordinates['rotate'].append(
-                {'coordinates': [
-                    640 - coord['coordinates'][0],
-                    640 - coord['coordinates'][1],
-                    640 - coord['coordinates'][2],
-                    640 - coord['coordinates'][3],
-                ], 'label': coord['label']}
-            )
-            self.coordinates['rotate2'].append(
-                {'coordinates': [
-                    640 - coord['coordinates'][1],
-                    640 - coord['coordinates'][0],
-                    640 - coord['coordinates'][3],
-                    640 - coord['coordinates'][2],
-                ], 'label': coord['label']}
-            )
-            self.coordinates['rotate3'].append(
-                {'coordinates': [
-                    coord['coordinates'][1],
-                    coord['coordinates'][0],
-                    coord['coordinates'][3],
-                    coord['coordinates'][2],
-                ], 'label': coord['label']}
-            )
-            self.coordinates['flip_blur'].append(
-                {'coordinates': [
-                    640 - coord['coordinates'][0],
-                    coord['coordinates'][1],
-                    640 - coord['coordinates'][2],
-                    coord['coordinates'][3],
-                ], 'label': coord['label']}
-            )
-            self.coordinates['flip2_blur'].append(
-                {'coordinates': [
-                    coord['coordinates'][0],
-                    640 - coord['coordinates'][1],
-                    coord['coordinates'][2],
-                    640 - coord['coordinates'][3],
-                ], 'label': coord['label']}
-            )
+    def cut_dataset(self, dataset):
+        random.shuffle(dataset)
+        split_index = math.ceil(0.8 * len(dataset))
+        training_set = dataset[:split_index]
+        validation_set = dataset[split_index:]
+        return training_set, validation_set
 
-            self.coordinates['rotate_blur'].append(
-                {'coordinates': [
-                    640 - coord['coordinates'][0],
-                    640 - coord['coordinates'][1],
-                    640 - coord['coordinates'][2],
-                    640 - coord['coordinates'][3],
-                ], 'label': coord['label']}
-            )
+    def save_images_to_dataset(self, images, folder='train'):
+        for i in images:
+            file_name = ''.join(random.choice(string.ascii_letters) for i in range(10))
+            path_images = os.path.join(f'./ModelDatasetled/{folder}/images', file_name)
+            path_labels = os.path.join(f'./ModelDatasetled/{folder}/labels', file_name)
+            cv2.imwrite(f"{path_images}.jpg", i['image'])
+            with open(f"{path_labels}.txt", 'w') as file:
+                for coordinates in i['bboxes']:
+                    file.write(
+                        f"{self.labels.index(coordinates[4])} {coordinates[0]} {coordinates[1]} {coordinates[2]} {coordinates[3]}\n")
 
-            self.coordinates['rotate2_blur'].append(
-                {'coordinates': [
-                    640 - coord['coordinates'][1],
-                    640 - coord['coordinates'][0],
-                    640 - coord['coordinates'][3],
-                    640 - coord['coordinates'][2],
-                ], 'label': coord['label']}
-            )
-
-            self.coordinates['rotate3_blur'].append(
-                {'coordinates': [
-                    coord['coordinates'][1],
-                    coord['coordinates'][0],
-                    coord['coordinates'][3],
-                    coord['coordinates'][2],
-                ], 'label': coord['label']}
-            )
-        self.coordinates['noise_1'] = self.coordinates['flip']
-        self.coordinates['noise_2'] = self.coordinates['flip2']
-        self.coordinates['noise_3'] = self.coordinates['rotate']
-        self.coordinates['noise_4'] = self.coordinates['rotate2']
-        self.coordinates['noise_5'] = self.coordinates['rotate3']
-        self.coordinates['noise_6'] = self.coordinates['basic']
-        self.coordinates['noise_7'] = self.coordinates['flip_blur']
-        self.coordinates['noise_8'] = self.coordinates['flip2_blur']
-        self.coordinates['noise_9'] = self.coordinates['rotate_blur']
-        self.coordinates['noise_10'] = self.coordinates['rotate2_blur']
-        self.coordinates['noise_11'] = self.coordinates['rotate3_blur']
-
-    @staticmethod
-    def noise(img):
-        gauss = np.random.normal(0, 1, img.size)
-        gauss = gauss.reshape(img.shape[0], img.shape[1], img.shape[2]).astype('uint8')
-        return gauss
-
-    def create_images(self):
-        basic = self.first_image
-        self.save_to_dataset(basic, 'basic', self.coordinates['basic'])
-        flip = cv2.flip(self.first_image, 1)
-        self.save_to_dataset(flip, 'flip', self.coordinates['flip'])
-        flip2 = cv2.flip(self.first_image, 0)
-        self.save_to_dataset(flip2, 'flip2', self.coordinates['flip2'])
-        rotate = cv2.rotate(self.first_image, 1)
-        self.save_to_dataset(rotate, 'rotate', self.coordinates['rotate'])
-        rotateflip = cv2.rotate(flip, cv2.ROTATE_90_CLOCKWISE)
-        self.save_to_dataset(rotateflip, 'rotate2', self.coordinates['rotate2'])
-        rotateflip2 = cv2.rotate(flip, cv2.ROTATE_90_COUNTERCLOCKWISE)
-        self.save_to_dataset(rotateflip2, 'rotate3', self.coordinates['rotate3'])
-        blurred = cv2.GaussianBlur(self.first_image, (5, 5), 0)
-        self.save_to_dataset(blurred, 'basic_blur', self.coordinates['basic_blur'])
-        blurred_2 = cv2.GaussianBlur(flip, (5, 5), 0)
-        self.save_to_dataset(blurred_2, 'flip_blur', self.coordinates['flip_blur'])
-        blurred_3 = cv2.GaussianBlur(flip2, (5, 5), 0)
-        self.save_to_dataset(blurred_3, 'flip2_blur', self.coordinates['flip2_blur'])
-        blurred_4 = cv2.GaussianBlur(rotate, (5, 5), 0)
-        self.save_to_dataset(blurred_4, 'rotate_blur', self.coordinates['rotate_blur'])
-        blurred_5 = cv2.GaussianBlur(rotateflip, (5, 5), 0)
-        self.save_to_dataset(blurred_5, 'rotate2_blur', self.coordinates['rotate2_blur'])
-        blurred_6 = cv2.GaussianBlur(rotateflip2, (5, 5), 0)
-        self.save_to_dataset(blurred_6, 'rotate3_blur', self.coordinates['rotate3_blur'])
-        gauss_noise = self.noise(self.first_image)
-        noise_1 = cv2.add(flip, gauss_noise)
-        self.save_to_dataset(noise_1, 'noise_1', self.coordinates['noise_1'])
-        noise_2 = cv2.add(flip2, gauss_noise)
-        self.save_to_dataset(noise_2, 'noise_2', self.coordinates['noise_2'])
-        noise_3 = cv2.add(rotate, gauss_noise)
-        self.save_to_dataset(noise_3, 'noise_3', self.coordinates['noise_3'])
-        noise_4 = cv2.add(rotateflip, gauss_noise)
-        self.save_to_dataset(noise_4, 'noise_4', self.coordinates['noise_4'])
-        noise_5 = cv2.add(rotateflip2, gauss_noise)
-        self.save_to_dataset(noise_5, 'noise_5', self.coordinates['noise_5'])
-        noise_6 = cv2.add(blurred, gauss_noise)
-        self.save_to_dataset(noise_6, 'noise_6', self.coordinates['noise_6'])
-        noise_7 = cv2.add(blurred_2, gauss_noise)
-        self.save_to_dataset(noise_7, 'noise_7', self.coordinates['noise_7'])
-        noise_8 = cv2.add(blurred_3, gauss_noise)
-        self.save_to_dataset(noise_8, 'noise_8', self.coordinates['noise_8'])
-        noise_9 = cv2.add(blurred_4, gauss_noise)
-        self.save_to_dataset(noise_9, 'noise_9', self.coordinates['noise_9'])
-        noise_10 = cv2.add(blurred_5, gauss_noise)
-        self.save_to_dataset(noise_10, 'noise_10', self.coordinates['noise_10'])
-        noise_11 = cv2.add(blurred_6, gauss_noise)
-        self.save_to_dataset(noise_11, 'noise_11', self.coordinates['noise_11'])
-        self.save_to_valid(noise_11, 'noise_11', self.coordinates['noise_11'])
-
-    def save_to_dataset(self, image, name, coordinates):
-        cv2.imwrite(f'./ModelDatasetled/train/images/{name}.jpg', image)
-        for cords in self.coordinates[name]:
-            with open(f'./ModelDatasetled/train/labels/{name}.txt', 'a') as file:
-                file.write(
-                    f"{self.labels.index(cords['label'])} {str(cords['coordinates'])[1:-1].replace(',', ' ')} \n")
-            pass
-
-    def save_to_valid(self, image, name, coordinates):
-        cv2.imwrite(f'./ModelDatasetled/valid/images/{name}.jpg', image)
-        for cords in self.coordinates[name]:
-            with open(f'./ModelDatasetled/valid/labels/{name}.txt', 'a') as file:
-                file.write(
-                    f"{self.labels.index(cords['label'])} {str(cords['coordinates'])[1:-1].replace(',', ' ')} \n")
-            pass
+    def create_dataset(self):
+        self.transform_image_data()
+        self.normalize_coordinates()
+        new_images = self.data_augmentation()
+        self.create_dataset_dependencies()
+        training_set, validation_set = self.cut_dataset(new_images)
+        self.save_images_to_dataset(training_set, folder='train')
+        self.save_images_to_dataset(validation_set, folder='valid')
 
 
-# if __name__ == "__main__":
-#     image = cv2.imread("../le3.png")
-#     newLed = LedDetection(image, [[110, 160, 235, 380], [220, 60, 340, 280], [330, 165, 500, 350]])
-#     newLed.create_dataset()
-#     newLed.train_model()
+input_data = {"detections": [
+    {"coordinates": [110, 160, 235, 380], "label": "led1"},
+    {"coordinates": [220, 60, 340, 280], "label": "led2"},
+    {"coordinates": [330, 165, 500, 350], "label": "led3"}
+]}
+
+if __name__ == "__main__":
+    image = cv2.imread("../testImages/led.png")
+    newLed = LedDetection(image, input_data)
+    newLed.create_dataset()
+

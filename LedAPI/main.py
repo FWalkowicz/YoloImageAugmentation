@@ -15,7 +15,7 @@ import threading
 import json
 
 storeLED = {"newLed": None, "model": YOLO(f"yolov8m.pt"), "isTraining": False}
-UserStorage = {"clientId": "comcore", "clientSecret": "75TF3R7HrqFB"}
+UserStorage = {"clientId": "xxxx", "clientSecret": "xxxx"}
 
 app = FastAPI()
 security = HTTPBasic()
@@ -68,8 +68,8 @@ def read_current_user(credentials: Annotated[str, Depends(get_current_username)]
 async def execute_ai(input_image: UploadFile, objects):
     """
     Process an input image to create a dataset for LED detection.
-    Example for coords: [[110, 160, 235, 380], [220, 60, 340, 280], [330, 165, 500, 350]]
-    Example: {"detections": [{"coordinates": [110, 160, 235, 380], "label": "led1"},{"coordinates": [220, 60, 340, 280], "label": "led2"}, {"coordinates": [330, 165, 500, 350], "label": "led3"}] }
+    Example for image: led2.png
+    Example for coords: {"detections": [{"coordinates": [110, 160, 235, 380], "label": "led1"},{"coordinates": [225, 60, 350, 285], "label": "led2"}, {"coordinates": [330, 170, 500, 350], "label": "led3"}, {"coordinates": [320, 320, 485, 525], "label": "led4"}, {"coordinates": [270, 390, 365, 620], "label": "led5"}, {"coordinates": [100, 400, 285, 535], "label": "led6"}] }
 
     :param input_image:  Uploaded image file (JPEG or PNG).
     :param coordinates: List of coordinates representing LED bounding boxes in the image.
@@ -81,15 +81,11 @@ async def execute_ai(input_image: UploadFile, objects):
     image_data = await input_image.read()
     nparr = np.frombuffer(image_data, np.uint8)
     image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-    data = json.loads(objects)
-    coordinates = []
-    labels = []
-    for obiekt in data['detections']:
-        coordinates.append(obiekt['coordinates'])
-        labels.append(obiekt['label'])
-    newLed = LedDetection(image, data)
+    input_data = json.loads(objects)
+    newLed = LedDetection(image, input_data)
+    print(input_data)
+    newLed.create_dataset()
     storeLED["newLed"] = newLed
-    newLed.create_dataset(labels)
     return {"message": "Image processed successfully"}
 
 
